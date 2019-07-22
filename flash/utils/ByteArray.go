@@ -36,8 +36,8 @@ ByteArray 提供用于优化读取/写入以及处理二进制数据的方法和
 type ByteArray struct {
 	raw      []byte
 	endian   binary.ByteOrder
-	length   uint
 	position uint
+	length   uint
 }
 
 /*
@@ -53,8 +53,8 @@ func (b *ByteArray) GetEndian() uint {
 /*
 SetEndian 设置 ByteArray 的字节序.
 */
-func (b *ByteArray) SetEndian(value uint) {
-	if EndianLittle == value {
+func (b *ByteArray) SetEndian(endian uint) {
+	if EndianLittle == endian {
 		b.endian = binary.LittleEndian
 		return
 	}
@@ -77,7 +77,7 @@ func (b *ByteArray) SetLength(newLen uint) {
 		return
 	}
 
-	if newLen > b.length {
+	if b.length < newLen {
 		b.checkCapacity(newLen)
 	}
 
@@ -197,6 +197,9 @@ func (b *ByteArray) ReadBytes(bytes *ByteArray, offset uint, length uint) error 
 	return nil
 }
 
+/*
+ReadDouble 从字节流中读取一个 IEEE 754 双精度(64 位)浮点数.
+*/
 func (b *ByteArray) ReadDouble() (float64, error) {
 	err := b.checkLength(byteWide8)
 
@@ -211,6 +214,9 @@ func (b *ByteArray) ReadDouble() (float64, error) {
 	return value, nil
 }
 
+/*
+ReadFloat 从字节流中读取一个 IEEE 754 单精度(32 位)浮点数.
+*/
 func (b *ByteArray) ReadFloat() (float32, error) {
 	err := b.checkLength(byteWide4)
 
@@ -225,6 +231,10 @@ func (b *ByteArray) ReadFloat() (float32, error) {
 	return value, nil
 }
 
+/*
+ReadInt 从字节流中读取一个带符号的 32 位整数.
+返回值的范围是从 -2147483648 到 2147483647.
+*/
 func (b *ByteArray) ReadInt() (int, error) {
 	err := b.checkLength(byteWide4)
 
@@ -239,6 +249,10 @@ func (b *ByteArray) ReadInt() (int, error) {
 	return value, nil
 }
 
+/*
+ReadShort 从字节流中读取一个带符号的 16 位整数.
+返回值的范围是从 -32768 到 32767.
+*/
 func (b *ByteArray) ReadShort() (int16, error) {
 	err := b.checkLength(byteWide2)
 
@@ -253,6 +267,10 @@ func (b *ByteArray) ReadShort() (int16, error) {
 	return value, nil
 }
 
+/*
+ReadUnsignedByte 从字节流中读取无符号的字节.
+返回值的范围是从 0 到 255.
+*/
 func (b *ByteArray) ReadUnsignedByte() (uint8, error) {
 	err := b.checkLength(byteWide1)
 
@@ -267,6 +285,10 @@ func (b *ByteArray) ReadUnsignedByte() (uint8, error) {
 	return uint8(value), nil
 }
 
+/*
+ReadUnsignedInt 从字节流中读取一个无符号的 32 位整数.
+返回值的范围是从 0 到 4294967295.
+*/
 func (b *ByteArray) ReadUnsignedInt() (uint, error) {
 	err := b.checkLength(byteWide4)
 
@@ -281,6 +303,10 @@ func (b *ByteArray) ReadUnsignedInt() (uint, error) {
 	return uint(value), nil
 }
 
+/*
+ReadUnsignedShort 从字节流中读取一个无符号的 16 位整数.
+返回值的范围是从 0 到 65535.
+*/
 func (b *ByteArray) ReadUnsignedShort() (uint16, error) {
 	err := b.checkLength(byteWide2)
 
@@ -295,11 +321,17 @@ func (b *ByteArray) ReadUnsignedShort() (uint16, error) {
 	return value, nil
 }
 
+/*
+ReadUTF 从字节流中读取一个 UTF-8 字符串. 假定字符串的前缀是无符号的短整型(以字节表示长度).
+*/
 func (b *ByteArray) ReadUTF() (string, error) {
 	length, _ := b.ReadUnsignedShort()
 	return b.ReadUTFBytes(length)
 }
 
+/*
+ReadUTFBytes 从字节流中读取一个由 length 参数指定的 UTF-8 字节序列, 并返回一个字符串.
+*/
 func (b *ByteArray) ReadUTFBytes(length uint16) (string, error) {
 	err := b.checkLength(uint(length))
 
@@ -314,6 +346,9 @@ func (b *ByteArray) ReadUTFBytes(length uint16) (string, error) {
 	return str, nil
 }
 
+/*
+WriteBoolean 写入布尔值. 根据 value 参数写入单个字节. 如果为 true, 则写入 1, 如果为 false, 则写入 0.
+*/
 func (b *ByteArray) WriteBoolean(value bool) {
 	b.checkCapacity(b.position + byteWide1)
 
@@ -326,6 +361,10 @@ func (b *ByteArray) WriteBoolean(value bool) {
 	b.movePointer(byteWide1, pointerPosition|pointerLength)
 }
 
+/*
+WriteByte 在字节流中写入一个字节.
+使用参数的低 8 位. 忽略高 24 位.
+*/
 func (b *ByteArray) WriteByte(value int8) {
 	b.checkCapacity(b.position + byteWide1)
 
@@ -334,7 +373,12 @@ func (b *ByteArray) WriteByte(value int8) {
 	b.movePointer(byteWide1, pointerPosition|pointerLength)
 }
 
-func (b *ByteArray) writeBytes(bytes *ByteArray, offset uint, length uint) {
+/*
+WriteBytes 将指定字节数组 bytes(起始偏移量为 offset, 从零开始的索引)中包含 length 个字节的字节序列写入字节流.
+如果省略 length 参数, 则使用默认长度 0; 该方法将从 offset 开始写入整个缓冲区. 如果还省略了 offset 参数, 则写入整个缓冲区.
+如果 offset 或 length 超出范围, 它们将被锁定到 bytes 数组的开头和结尾.
+*/
+func (b *ByteArray) WriteBytes(bytes *ByteArray, offset uint, length uint) {
 	if bytes.length < offset {
 		offset = 0
 	}
@@ -350,6 +394,9 @@ func (b *ByteArray) writeBytes(bytes *ByteArray, offset uint, length uint) {
 	b.movePointer(length, pointerPosition)
 }
 
+/*
+WriteDouble 在字节流中写入一个 IEEE 754 双精度（64 位）浮点数.
+*/
 func (b *ByteArray) WriteDouble(value float64) {
 	b.checkCapacity(b.position + byteWide8)
 
@@ -358,6 +405,9 @@ func (b *ByteArray) WriteDouble(value float64) {
 	b.movePointer(byteWide8, pointerPosition|pointerLength)
 }
 
+/*
+WriteFloat 在字节流中写入一个 IEEE 754 单精度(32 位)浮点数.
+*/
 func (b *ByteArray) WriteFloat(value float32) {
 	b.checkCapacity(b.position + byteWide4)
 
@@ -366,6 +416,9 @@ func (b *ByteArray) WriteFloat(value float32) {
 	b.movePointer(byteWide4, pointerPosition|pointerLength)
 }
 
+/*
+WriteInt 在字节流中写入一个带符号的 32 位整数.
+*/
 func (b *ByteArray) WriteInt(value int32) {
 	b.checkCapacity(b.position + byteWide4)
 
@@ -374,6 +427,9 @@ func (b *ByteArray) WriteInt(value int32) {
 	b.movePointer(byteWide4, pointerPosition|pointerLength)
 }
 
+/*
+WriteShort 在字节流中写入一个 16 位整数. 使用参数的低 16 位. 忽略高 16 位.
+*/
 func (b *ByteArray) WriteShort(value int16) {
 	b.checkCapacity(b.position + byteWide2)
 
@@ -382,6 +438,9 @@ func (b *ByteArray) WriteShort(value int16) {
 	b.movePointer(byteWide2, pointerPosition|pointerLength)
 }
 
+/*
+WriteUnsignedInt 在字节流中写入一个无符号的 32 位整数.
+*/
 func (b *ByteArray) WriteUnsignedInt(value uint32) {
 	b.checkCapacity(b.position + byteWide4)
 
@@ -390,6 +449,9 @@ func (b *ByteArray) WriteUnsignedInt(value uint32) {
 	b.movePointer(byteWide4, pointerPosition|pointerLength)
 }
 
+/*
+WriteUTF 将 UTF-8 字符串写入字节流. 先写入以字节表示的 UTF-8 字符串长度(作为 16 位整数), 然后写入表示字符串字符的字节.
+*/
 func (b *ByteArray) WriteUTF(value string) {
 	bs := []byte(value)
 	length := uint(len(bs))
@@ -403,6 +465,9 @@ func (b *ByteArray) WriteUTF(value string) {
 	b.movePointer(length, pointerPosition|pointerLength)
 }
 
+/*
+WriteUTFBytes 将 UTF-8 字符串写入字节流. 类似于 writeUTF() 方法，但 writeUTFBytes() 不使用 16 位长度的词为字符串添加前缀.
+*/
 func (b *ByteArray) WriteUTFBytes(value string) {
 	bs := []byte(value)
 	length := uint(len(bs))
@@ -432,9 +497,9 @@ func (b *ByteArray) checkCapacity(newCap uint) {
 			oldCap += oldCap
 		}
 
-		src := b.raw[:b.length]
+		oldRaw := b.raw[:b.length]
 		b.raw = make([]byte, oldCap)
-		copy(b.raw, src)
+		copy(b.raw, oldRaw)
 	}
 }
 

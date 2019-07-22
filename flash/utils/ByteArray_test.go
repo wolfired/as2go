@@ -43,7 +43,7 @@ func Test_ByteArray_SetLength(t *testing.T) {
 		}
 
 		if 4 != len(ba.raw) {
-			t.Error("Expect raw ength", 4)
+			t.Error("Expect raw length", 4)
 			t.Error("Actual raw length", len(ba.raw))
 		}
 
