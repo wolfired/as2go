@@ -21,8 +21,15 @@ const (
 /*
 NewByteArray 创建一个 ByteArray 指针.
 */
-func NewByteArray() (b *ByteArray) {
-	b = &ByteArray{raw: make([]byte, 0)}
+func NewByteArray(raw []byte) (b *ByteArray) {
+	b = &ByteArray{}
+
+	if nil == raw {
+		b.raw = make([]byte, 0)
+	} else {
+		b.raw = raw
+	}
+
 	b.SetEndian(EndianBig)
 	b.SetPosition(0)
 	b.SetLength(0)
