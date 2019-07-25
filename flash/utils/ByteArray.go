@@ -499,7 +499,7 @@ func (b *ByteArray) checkCapacity(newCap uint) {
 
 	if 0 == oldCap {
 		b.raw = make([]byte, newCap)
-	} else {
+	} else if oldCap < newCap {
 		for oldCap < newCap {
 			oldCap += oldCap
 		}
